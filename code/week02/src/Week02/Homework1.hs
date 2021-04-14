@@ -32,7 +32,7 @@ import Prelude (Semigroup (..))
 {-# INLINEABLE mkValidator #-}
 -- This should validate if and only if the two Booleans in the redeemer are equal!
 mkValidator :: () -> (Bool, Bool) -> ValidatorCtx -> Bool
-mkValidator _ (a, b) _ = a == b
+mkValidator _ (a, b) _ = traceIfFalse "Redeemer mismatch" $ a == b
 
 data Typed
 

@@ -64,6 +64,7 @@ import PlutusTx.Prelude
     String,
     fst,
     mconcat,
+    traceIfFalse,
     ($),
     (<$>),
   )
@@ -81,7 +82,7 @@ PlutusTx.unstableMakeIsData ''MyRedeemer
 {-# INLINEABLE mkValidator #-}
 -- This should validate if and only if the two Booleans in the redeemer are equal!
 mkValidator :: () -> MyRedeemer -> ValidatorCtx -> Bool
-mkValidator _ (MyRedeemer f1 f2) _ = f1 == f2
+mkValidator _ (MyRedeemer f1 f2) _ = traceIfFalse "Redeemer mismatch" $ f1 == f2
 
 data Typed
 
