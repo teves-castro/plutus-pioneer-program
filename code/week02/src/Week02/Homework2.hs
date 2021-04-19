@@ -36,8 +36,8 @@ import Ledger.Constraints as Constraints
   )
 import qualified Ledger.Scripts as Scripts
 import qualified Ledger.Typed.Scripts as Scripts
-import Playground.Contract (ToSchema)
-import Playground.TH (mkKnownCurrencies, mkSchemaDefinitions)
+import Playground.Contract (ToSchema, printSchemas)
+import Playground.TH (ensureKnownCurrencies, mkKnownCurrencies, mkSchemaDefinitions)
 import Playground.Types (KnownCurrency (..))
 import Plutus.Contract
   ( AsContractError,
@@ -59,6 +59,7 @@ import qualified PlutusTx
 import PlutusTx.Prelude
   ( Bool,
     Eq ((==)),
+    IO,
     Integer,
     Monad ((>>=)),
     String,
