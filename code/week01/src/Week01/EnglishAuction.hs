@@ -30,24 +30,25 @@ module Week01.EnglishAuction
     ) where
 
 import           Control.Monad        hiding (fmap)
-import           Data.Aeson           (ToJSON, FromJSON)
+import           Data.Aeson           (FromJSON, ToJSON)
 import           Data.List.NonEmpty   (NonEmpty (..))
 import           Data.Map             as Map
-import           Data.Text            (pack, Text)
+import           Data.Text            (Text, pack)
 import           GHC.Generics         (Generic)
-import           Plutus.Contract      hiding (when)
-import qualified PlutusTx             as PlutusTx
-import           PlutusTx.Prelude     hiding (Semigroup(..), unless)
-import qualified PlutusTx.Prelude     as Plutus
 import           Ledger               hiding (singleton)
+import           Ledger.Ada           as Ada
 import           Ledger.Constraints   as Constraints
 import qualified Ledger.Scripts       as Scripts
 import qualified Ledger.Typed.Scripts as Scripts
 import           Ledger.Value         as Value
-import           Ledger.Ada           as Ada
-import           Playground.Contract  (ensureKnownCurrencies, printSchemas, stage, printJson)
+import           Playground.Contract  (ensureKnownCurrencies, printJson,
+                                       printSchemas, stage)
 import           Playground.TH        (mkKnownCurrencies, mkSchemaDefinitions)
 import           Playground.Types     (KnownCurrency (..))
+import           Plutus.Contract      hiding (when)
+import qualified PlutusTx             as PlutusTx
+import           PlutusTx.Prelude     hiding (Semigroup (..), unless)
+import qualified PlutusTx.Prelude     as Plutus
 import           Prelude              (Semigroup (..))
 import           Schema               (ToSchema)
 import           Text.Printf          (printf)
@@ -110,7 +111,7 @@ minBid AuctionDatum{..} = case adHighestBid of
     Just Bid{..} -> bBid + 1
 
 {-# INLINABLE mkAuctionValidator #-}
-mkAuctionValidator :: AuctionDatum -> AuctionAction -> ValidatorCtx -> Bool
+mkAuctionValidator :: AuctionDatum -> AuctionAction -> ScriptContext -> Bool
 mkAuctionValidator ad redeemer ctx =
     traceIfFalse "wrong input value" correctInputValue &&
     case redeemer of

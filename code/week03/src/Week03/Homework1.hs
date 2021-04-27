@@ -13,21 +13,22 @@
 module Week03.Homework1 where
 
 import           Control.Monad        hiding (fmap)
-import           Data.Aeson           (ToJSON, FromJSON)
+import           Data.Aeson           (FromJSON, ToJSON)
 import           Data.Map             as Map
 import           Data.Text            (Text)
 import           Data.Void            (Void)
 import           GHC.Generics         (Generic)
+import           Ledger               hiding (singleton)
+import           Ledger.Ada           as Ada
+import           Ledger.Constraints   as Constraints
+import qualified Ledger.Typed.Scripts as Scripts
+import           Playground.Contract  (ToSchema, ensureKnownCurrencies,
+                                       printJson, printSchemas, stage)
+import           Playground.TH        (mkKnownCurrencies, mkSchemaDefinitions)
+import           Playground.Types     (KnownCurrency (..))
 import           Plutus.Contract      hiding (when)
 import qualified PlutusTx
 import           PlutusTx.Prelude     hiding (unless)
-import           Ledger               hiding (singleton)
-import           Ledger.Constraints   as Constraints
-import qualified Ledger.Typed.Scripts as Scripts
-import           Ledger.Ada           as Ada
-import           Playground.Contract  (printJson, printSchemas, ensureKnownCurrencies, stage, ToSchema)
-import           Playground.TH        (mkKnownCurrencies, mkSchemaDefinitions)
-import           Playground.Types     (KnownCurrency (..))
 import qualified Prelude              as P
 import           Text.Printf          (printf)
 
@@ -43,7 +44,19 @@ PlutusTx.unstableMakeIsData ''VestingDatum
 -- This should validate if either beneficiary1 has signed the transaction and the current slot is before or at the deadline
 -- or if beneficiary2 has signed the transaction and the deadline has passed.
 mkValidator :: VestingDatum -> () -> ScriptContext -> Bool
-mkValidator _ _ _ = False -- FIX ME!
+mkValidator datum _ ctx =
+        traceIfFalse "Beneficiary 1 is not valid" (isBeforeOrAtDeadline && beneficiary1Signed) ||
+        traceIfFalse "Beneficiary 2 is not valid" (isAfterDeadline && beneficiary2Signed)
+    where
+        info = scriptContextTxInfo ctx
+        deadlineSlot = deadline datum
+        signatories = txInfoSignatories info
+
+        isBeforeOrAtDeadline = to deadlineSlot `contains` txInfoValidRange info
+        isAfterDeadline = from (deadlineSlot + 1) `contains` txInfoValidRange info
+
+        beneficiary1Signed = beneficiary1 datum `elem` signatories
+        beneficiary2Signed = beneficiary2 datum `elem` signatories
 
 data Vesting
 instance Scripts.ScriptType Vesting where

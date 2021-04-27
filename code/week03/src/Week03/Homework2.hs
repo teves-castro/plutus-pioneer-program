@@ -14,27 +14,40 @@
 module Week03.Homework2 where
 
 import           Control.Monad        hiding (fmap)
-import           Data.Aeson           (ToJSON, FromJSON)
+import           Data.Aeson           (FromJSON, ToJSON)
 import           Data.Map             as Map
 import           Data.Text            (Text)
 import           Data.Void            (Void)
 import           GHC.Generics         (Generic)
-import           Plutus.Contract      hiding (when)
-import qualified PlutusTx
-import           PlutusTx.Prelude     hiding (Semigroup(..), unless)
 import           Ledger               hiding (singleton)
+import           Ledger.Ada           as Ada
 import           Ledger.Constraints   as Constraints
 import qualified Ledger.Typed.Scripts as Scripts
-import           Ledger.Ada           as Ada
-import           Playground.Contract  (printJson, printSchemas, ensureKnownCurrencies, stage, ToSchema)
+import           Playground.Contract
+import           Playground.Contract  (ToSchema, ensureKnownCurrencies,
+                                       printJson, printSchemas, stage)
 import           Playground.TH        (mkKnownCurrencies, mkSchemaDefinitions)
 import           Playground.Types     (KnownCurrency (..))
+import           Plutus.Contract      hiding (when)
+import qualified PlutusTx
+import           PlutusTx.Prelude     hiding (Semigroup (..), unless)
 import           Prelude              (Semigroup (..))
 import           Text.Printf          (printf)
 
 {-# INLINABLE mkValidator #-}
 mkValidator :: PubKeyHash -> Slot -> () -> ScriptContext -> Bool
-mkValidator _ _ _ _ = False -- FIX ME!
+mkValidator beneficiary deadline _ ctx =
+    traceIfFalse "beneficiary's signature missing" checkSig      &&
+    traceIfFalse "deadline not reached"            checkDeadline
+  where
+    info :: TxInfo
+    info = scriptContextTxInfo ctx
+
+    checkSig :: Bool
+    checkSig = beneficiary `elem` txInfoSignatories info
+
+    checkDeadline :: Bool
+    checkDeadline = from deadline `contains` txInfoValidRange info
 
 data Vesting
 instance Scripts.ScriptType Vesting where
@@ -42,13 +55,17 @@ instance Scripts.ScriptType Vesting where
     type instance RedeemerType Vesting = ()
 
 inst :: PubKeyHash -> Scripts.ScriptInstance Vesting
-inst = undefined -- IMPLEMENT ME!
+inst p = Scripts.validator @Vesting
+    ($$(PlutusTx.compile [|| mkValidator ||]) `PlutusTx.applyCode` PlutusTx.liftCode p)
+    $$(PlutusTx.compile [|| wrap ||])
+  where
+    wrap = Scripts.wrapValidator @Slot @()
 
 validator :: PubKeyHash -> Validator
-validator = undefined -- IMPLEMENT ME!
+validator = Scripts.validatorScript . inst
 
 scrAddress :: PubKeyHash -> Ledger.Address
-scrAddress = undefined -- IMPLEMENT ME!
+scrAddress = scriptAddress . validator
 
 data GiveParams = GiveParams
     { gpBeneficiary :: !PubKeyHash
