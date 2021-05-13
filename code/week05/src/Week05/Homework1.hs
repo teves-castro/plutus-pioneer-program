@@ -14,21 +14,23 @@ module Week05.Homework1 where
 
 import           Control.Monad              hiding (fmap)
 import           Control.Monad.Freer.Extras as Extras
-import           Data.Aeson                 (ToJSON, FromJSON)
+import           Data.Aeson                 (FromJSON, ToJSON)
 import           Data.Text                  (Text)
 import           Data.Void                  (Void)
 import           GHC.Generics               (Generic)
-import           Plutus.Contract            as Contract hiding (when)
-import           Plutus.Trace.Emulator      as Emulator
-import qualified PlutusTx
-import           PlutusTx.Prelude           hiding (Semigroup(..), unless)
 import           Ledger                     hiding (singleton)
 import           Ledger.Constraints         as Constraints
 import qualified Ledger.Typed.Scripts       as Scripts
 import           Ledger.Value               as Value
-import           Playground.Contract        (printJson, printSchemas, ensureKnownCurrencies, stage, ToSchema)
-import           Playground.TH              (mkKnownCurrencies, mkSchemaDefinitions)
+import           Playground.Contract        (ToSchema, ensureKnownCurrencies,
+                                             printJson, printSchemas, stage)
+import           Playground.TH              (mkKnownCurrencies,
+                                             mkSchemaDefinitions)
 import           Playground.Types           (KnownCurrency (..))
+import           Plutus.Contract            as Contract hiding (when)
+import           Plutus.Trace.Emulator      as Emulator
+import qualified PlutusTx
+import           PlutusTx.Prelude           hiding (Semigroup (..), unless)
 import           Prelude                    (Semigroup (..))
 import           Text.Printf                (printf)
 import           Wallet.Emulator.Wallet
@@ -37,13 +39,22 @@ import           Wallet.Emulator.Wallet
 -- This policy should only allow minting (or burning) of tokens if the owner of the specified PubKeyHash
 -- has signed the transaction and if the specified deadline has not passed.
 mkPolicy :: PubKeyHash -> Slot -> ScriptContext -> Bool
-mkPolicy pkh deadline ctx = True -- FIX ME!
+mkPolicy pkh deadline ctx =
+        txSignedBy info pkh
+        && to deadline `contains` txInfoValidRange info
+    where
+        info = scriptContextTxInfo ctx
 
 policy :: PubKeyHash -> Slot -> Scripts.MonetaryPolicy
-policy pkh deadline = undefined -- IMPLEMENT ME!
+policy pkh deadline = mkMonetaryPolicyScript $
+        $$(PlutusTx.compile [|| \pkh' deadline' -> Scripts.wrapMonetaryPolicy $ mkPolicy pkh' deadline' ||])
+        `PlutusTx.applyCode`
+        PlutusTx.liftCode pkh
+        `PlutusTx.applyCode`
+        PlutusTx.liftCode deadline
 
 curSymbol :: PubKeyHash -> Slot -> CurrencySymbol
-curSymbol pkh deadline = undefined -- IMPLEMENT ME!
+curSymbol pkh deadline = scriptCurrencySymbol $ policy pkh deadline
 
 data MintParams = MintParams
     { mpTokenName :: !TokenName
